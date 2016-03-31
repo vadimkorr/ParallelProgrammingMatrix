@@ -26,3 +26,8 @@
 *.exe
 *.out
 *.app
+
+*.suo
+Matricies/*.sdf
+Matricies/Debug/*
+Matricies/Matricies/Debug/*
