@@ -3,6 +3,7 @@
 #include "device_launch_parameters.h"
 
 #include <stdio.h>
+#include <conio.h>
 
 cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size);
 
@@ -37,6 +38,7 @@ int main()
         return 1;
     }
 
+	getch();
     return 0;
 }
 
