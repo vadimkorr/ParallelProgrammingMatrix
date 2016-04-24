@@ -1,123 +1,164 @@
-#include "cuda_runtime.h"
+﻿#include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
 #include <stdio.h>
 #include <conio.h>
 #include <stdlib.h>
 
-// Matrices are stored in row-major order:
-// M(row, col) = *(M.elements + row * M.width + col)
-typedef struct
-{
-	int width;
-	int height;
-	float* elements;
-} Matrix;
 
 // Thread block size
-#define BLOCK_SIZE 32
-__global__ void MatMulKernel(const Matrix, const Matrix, Matrix);
-void PrintMatrix(Matrix A);
-void InitMatrix(Matrix* A);
+#define BLOCK_SIZE 16 //submatrix size 
+#define N 16 //matrix size is N*N 
+__global__ void matMult(float* a, float* b, float *t, int n, float* c);
+void PrintMatrix(float* a, int n);
+void InitMatrix(float* a, int n);
 
-// Matrix multiplication - Host code
-// Matrix dimensions are assumed to be multiples of BLOCK_SIZE
-void MatMul(const Matrix A, const Matrix B, Matrix C) 
+
+int main (int argc, char* argv[])
 {
-	// Load A and B to device memory
-	Matrix d_A;
-	d_A.width = A.width;
-	d_A.height = A.height;
-	size_t size = A.width * A.height * sizeof(float);
-	cudaError_t err = cudaMalloc(&d_A.elements, size);
-	printf("CUDA malloc A: %s\n", cudaGetErrorString(err));
-	err = cudaMemcpy(d_A.elements, A.elements, size, cudaMemcpyHostToDevice);
-	printf("Copy A to device: %s\n", cudaGetErrorString(err));
-	Matrix d_B;
-	d_B.width = B.width;
-	d_B.height = B.height;
-	size = B.width * B.height * sizeof(float);
-	err = cudaMalloc(&d_B.elements, size);
-	printf("CUDA malloc B: %s\n", cudaGetErrorString(err));
-	err = cudaMemcpy(d_B.elements, B.elements, size, cudaMemcpyHostToDevice);
-	printf("Copy B to device: %s\n", cudaGetErrorString(err));
-	// Allocate C in device memory
-	Matrix d_C;
-	d_C.width = C.width;
-	d_C.height = C.height;
-	size = C.width * C.height * sizeof(float);
-	err = cudaMalloc(&d_C.elements, size);
-	printf("CUDA malloc C: %s\n", cudaGetErrorString(err));
-	// Invoke kernel
-	dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
-	dim3 dimGrid((B.width + dimBlock.x - 1) / dimBlock.x, (A.height + dimBlock.y - 1) / dimBlock.y);
-	MatMulKernel << <dimGrid, dimBlock >> >(d_A, d_B, d_C);
-	err = cudaThreadSynchronize();
-	printf("Run kernel: %s\n", cudaGetErrorString(err));
-	// Read C from device memory
-	err = cudaMemcpy(C.elements, d_C.elements, size, cudaMemcpyDeviceToHost);
-	printf("Copy C off of device: %s\n", cudaGetErrorString(err));
-	// Free device memory
-	cudaFree(d_A.elements);
-	cudaFree(d_B.elements);
-	// cudaFree(d_C.elements);
-}
-
-// Matrix multiplication kernel called by MatMul()
-__global__ void MatMulKernel(Matrix A, Matrix B, Matrix C) 
-{
-	// Each thread computes one element of C
-	// by accumulating results into Cvalue
-	float Cvalue = 0.0;
-	int row = blockIdx.y * blockDim.y + threadIdx.y;
-	int col = blockIdx.x * blockDim.x + threadIdx.x;
-	if (row > A.height || col > B.width) return;
-
-	for (int e = 0; e < A.width; ++e) 
-	{
-		Cvalue += (A.elements[row * A.width + e]) * (B.elements[e * B.width + col]);
-	}
-	C.elements[row * C.width + col] = Cvalue;
-}
-
-// Usage: multNoShare a1 a2 b2
-int main(int argc, char* argv[])
-{
-	Matrix A, B, C;
-	int a1, a2, b1, b2;
-	int size = 1000;
-	// Read some values from the commandline
-	a1 = size; /* Height of A */
-	a2 = size; /* Width of A */
-	b1 = a2; /* Height of B = Width of A*/
-	b2 = size; /* Width of B */
-	A.height = a1;
-	A.width = a2;
-	A.elements = (float*)malloc(A.width * A.height * sizeof(float));
-	B.height = b1;
-	B.width = b2;
-	B.elements = (float*)malloc(B.width * B.height * sizeof(float));
-	C.height = A.height;
-	C.width = B.width;
-	C.elements = (float*)malloc(C.width * C.height * sizeof(float));
-
-	InitMatrix(&A);
-	InitMatrix(&B);
-	MatMul(A, B, C);
+	int numBytes = N * N * sizeof(float);
 	
-	PrintMatrix(C);
+	//allocate host memory 
+	float* a = new float[N*N];
+	float* b = new float[N*N];
+	float* c = new float[N*N];
+
+	//init matricies
+	InitMatrix(a, N);
+	InitMatrix(b, N);
+
+	//allocate device memory 
+	float* adev = NULL;
+	float* bdev = NULL;
+	float* cdev = NULL;
+	float* tdev = NULL;
+	cudaMalloc((void**)&adev, numBytes);
+	cudaMalloc((void**)&bdev, numBytes);
+	cudaMalloc((void**)&cdev, numBytes);
+	cudaMalloc((void**)&tdev, numBytes);
+
+	//set kernel launch configuration 
+	dim3 threads (BLOCK_SIZE, BLOCK_SIZE);
+	dim3 blocks (N / threads.x, N / threads.y);
+
+	//create cuda event handles 
+	cudaEvent_t start, stop;
+	float gpuTime = 0.0f;
+	cudaEventCreate (&start);
+	cudaEventCreate (&stop);
+
+	//asynchronously issue work to the GPU (all to stream 0) 
+	cudaEventRecord(start, 0);
+	cudaMemcpy(adev, a, numBytes, cudaMemcpyHostToDevice);
+	cudaMemcpy(bdev, b, numBytes, cudaMemcpyHostToDevice);
+
+	matMult<<<blocks, threads>>>(adev, bdev, tdev, N, cdev);
+
+	cudaMemcpy(c, cdev, numBytes, cudaMemcpyDeviceToHost);
+	PrintMatrix(c, N);
+
+	cudaEventRecord(stop, 0);
+	cudaEventSynchronize(stop);
+	cudaEventElapsedTime(&gpuTime, start, stop);
 	
+	//print the cpu and gpu times 
+	printf("time spent executing by the GPU: %.2f ms\n", gpuTime);
+
+	//release resources 
+	cudaEventDestroy(start);
+	cudaEventDestroy(stop);
+	cudaFree(adev);
+	cudaFree(bdev);
+	cudaFree(cdev);
+	delete a;
+	delete b;
+	delete c;
 	getch();
-	free(&A); free(&B); free(&C);
-}void PrintMatrix(Matrix A){	printf("%.0f ", A.elements[(A.height-1)*A.width + (A.width-1)]);	/*for (int i = 0; i < A.height; i++)
+	return 0;
+}
+
+__global__ void matMult(float* a, float* b, float* t, int n, float* c)
+{
+	int bx = blockIdx.x; //block index 
+	int by = blockIdx.y;
+	int tx = threadIdx.x; //thread index 
+	int ty = threadIdx.y;
+	float sum = 0.0f; //computed subelement 
+	int ia = n * BLOCK_SIZE * by + n * ty; //a [i][0] 
+	int ib = BLOCK_SIZE * bx + tx;
+
+	//C = A*B 
+	for (int k = 0; k < n; k++)
 	{
-		for (int j = 0; j < A.width; j++)
+		sum += a[ia + k] * b[ib + k*n];
+	}
+
+	//Write the block sub‐matrix to global memory; each thread writes one element 
+	int ic = n * BLOCK_SIZE * by + BLOCK_SIZE * bx;
+	c[ic + n * ty + tx] = sum;
+	__syncthreads();
+
+	//C = C*C 
+	sum = 0.0f;
+	int ic1 = ia, ic2 = ib;
+	for (int k = 0; k < n; k++)
+	{
+		sum += c[ic1 + k] * c[ic2 + k*n];
+	}
+	
+	ic = n * BLOCK_SIZE * by + BLOCK_SIZE * bx;
+	c[ic + n * ty + tx] = sum;
+	__syncthreads();
+
+	//A = A*2, B = B*3 
+	for (int k = 0; k < n; k++)
+	{
+		a[ia + k] *= 2;
+		b[ib + k*n] *= 3;
+	}
+	__syncthreads();
+	
+	//C = A - B + C
+	sum = 0.0f;
+	ic = ia;
+	for (int k = 0; k < n; k++)
+	{
+		sum = a[ia + k] - b[ib + k*n] + c[ic + k];
+	}
+
+	// Write the block sub‐matrix to global memory; each thread writes one element 
+	ic = n * BLOCK_SIZE * by + BLOCK_SIZE * bx;
+	c[ic + n * ty + tx] = sum;
+	__syncthreads();
+}
+
+
+/* UTILS */
+
+void InitMatrix(float* a, int n)
+{
+	for (int i = 0; i < n; i++)
+	{
+		for (int j = 0; j < n; j++)
 		{
-			printf("%.0f ", A.elements[i*A.width + j]);
+			int k = n * i + j;
+			a[k] = 1;
 		}
-		printf("\n");
-	}*/	printf("\n");}void InitMatrix(Matrix* A){	for (int i = 0; i < A->height; i++)
+	}
+}
+
+void PrintMatrix(float* a, int n)
+{
+	int rowStep = (n - 1) / 2;
+	int colStep = (n - 1) / 2;
+
+	for (int i = 0; i < n; i += rowStep)
 	{
-		for (int j = 0; j < A->width; j++)
+		for (int j = 0; j < n; j += colStep)
 		{
-			A->elements[i*A->width + j] = 1;		}	}}
+			int k = n * i + j;
+			printf("[%d,%d]: %.1f\n", i, j, a[k]);
+		}
+	}
+	printf("\n");
+}
