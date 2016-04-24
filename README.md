@@ -14,5 +14,9 @@ Matrix-matrix multiplication is a good example for parallel computation.
 #####Samples
 * `C:\ProgramData\NVIDIA Corporation\CUDA Samples\v6.5`
 
+#####Content:
+1. Calculate (A\*const1 - B\*const2) + (A\*B)^2, where A, B square matricies N\*N 
+
+
 
 
