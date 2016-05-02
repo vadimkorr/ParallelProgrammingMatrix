@@ -1,0 +1,104 @@
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <vector> 
+
+#define N 8192
+#define BLOCK_SIZE 16
+
+__global__ void mult( int *a, int *b, int *c, int *d) { 
+	int bx = blockIdx.x;
+	int by = blockIdx.y;
+	int tx = threadIdx.x;
+	int ty = threadIdx.y;
+	int aBegin = N * BLOCK_SIZE * by;
+	int aEnd = aBegin + N - 1;
+	int bBegin = BLOCK_SIZE * bx;
+	int aStep = BLOCK_SIZE;
+	int bStep = BLOCK_SIZE * N;
+	float sum = 0.0f;
+	for (int ia = aBegin, ib = bBegin; ia <= aEnd; ia += aStep, ib += bStep)
+	{
+		__shared__ float as [BLOCK_SIZE][BLOCK_SIZE];
+		__shared__ float bs [BLOCK_SIZE][BLOCK_SIZE];
+		as[ty][tx] = a [ia + N * ty + tx];
+		bs[ty][tx] = b [ib + N * ty + tx];
+		__syncthreads (); // Убедимся, что подматрицы полностью загружены
+		for ( int k = 0; k < BLOCK_SIZE; k++ )
+			sum += as [ty][k] * bs [k][tx];
+			__syncthreads (); // Убедимся, что подматрицы никому больше не нужны
+	}
+	c [N * BLOCK_SIZE * by + BLOCK_SIZE * bx + N * ty + tx] = sum;
+}
+
+int main( void ) { 
+    int *a,*b; 
+    int *c, *d;
+    a=(int *)malloc(N*N*sizeof(int)); 
+    b=(int *)malloc(N*N*sizeof(int)); 
+    c=(int *)malloc(N*N*sizeof(int)); 
+	d=(int *)malloc(N*N*sizeof(int)); 
+
+    int *dev_a, *dev_b; 
+    int *dev_c, *dev_d; 
+    cudaMalloc((void**) &dev_a, N*N*sizeof(int)); 
+    cudaMalloc((void**) &dev_b, N*N*sizeof(int)); 
+    cudaMalloc((void**) &dev_c, N*N*sizeof(int));
+	cudaMalloc((void**) &dev_d, N*N*sizeof(int));
+    for (int i=0; i<N*N; i++) { 
+        a[i]=1; 
+        b[i]=1; 
+    } 
+    for (int i=0; i<N*N; i++) c[i]=0; 
+    printf("Initialization is finished\n"); 
+
+	dim3 threads(BLOCK_SIZE, BLOCK_SIZE);
+	dim3 blocks(N/threads.x, N/threads.y);
+
+	cudaEvent_t start,stop;
+	float gpuTime = 0.0f;
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
+	cudaEventRecord(start,0);
+
+    cudaMemcpy(dev_a, a,N*N*sizeof(int),cudaMemcpyHostToDevice); 
+    cudaMemcpy(dev_b, b,N*N*sizeof(int),cudaMemcpyHostToDevice); 
+    cudaMemcpy(dev_c, c,N*N*sizeof(int),cudaMemcpyHostToDevice); 
+	cudaMemcpy(dev_d, d,N*N*sizeof(int),cudaMemcpyHostToDevice); 
+
+    mult<<<blocks,threads>>>(dev_a,dev_b,dev_c,dev_d); 
+    cudaDeviceSynchronize(); 
+	mult<<<blocks,threads>>>(dev_c,dev_c,dev_d,dev_a); 
+	cudaMemcpy(d, dev_d,N*N*sizeof(int),cudaMemcpyDeviceToHost); 
+	printf("Done\n"); 
+	
+	 cudaEventRecord(stop,0);
+	cudaEventSynchronize(stop);
+	cudaEventElapsedTime(&gpuTime, start,stop);
+	printf("time spent executing by the GPU: %.2f millseconds\n", gpuTime);
+	cudaEventDestroy(start);
+	cudaEventDestroy(stop);
+
+   /* for (int i=0; i<N*N; i++) { 
+        if (i%N==1) printf("\n"); 
+        printf("%i ",a[i]); 
+    } 
+    printf("\n"); 
+    for (int i=0; i<N*N; i++) { 
+         if (i%N==1) printf("\n"); 
+         printf("%i ",b[i]); 
+    } 
+    printf("\n"); 
+    for (int i=0; i<N*N; i++) { 
+        if (i%N==1) printf("\n"); 
+         printf("%i ",d[i]); 
+    } */
+    cudaFree( dev_a); 
+    cudaFree( dev_b); 
+    cudaFree( dev_c); 
+	cudaFree( dev_d);
+    free(a); 
+    free(b); 
+    free(c);
+	free(d);
+    return 0; 
+}
