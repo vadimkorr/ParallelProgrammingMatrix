@@ -1,4 +1,4 @@
-Matrix-matrix multiplication is a good example for parallel computation.
+atrix-matrix multiplication is a good example for parallel computation.
 
 #####Software:
 * Windows 7 32-bit
@@ -15,8 +15,7 @@ Matrix-matrix multiplication is a good example for parallel computation.
 * `C:\ProgramData\NVIDIA Corporation\CUDA Samples\v6.5`
 
 #####Content:
-1. Calculate (A\*const1 - B\*const2) + (A\*B)^2, where A, B square matricies N\*N 
-
-
-
-
+Calculate (A\*const1 - B\*const2) + (A\*B), where A, B square matricies 4096\*4096 with integer typed elements
+1. using global memory
+2. using shared memory
+3. using CUBLAS library
