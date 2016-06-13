@@ -1,41 +1,40 @@
 ﻿#include "cuda_runtime.h"
 #include "device_launch_parameters.h"
-
 #include <stdio.h>
 #include <conio.h>
 #include <stdlib.h>
 
-
 // Thread block size
-#define BLOCK_SIZE 16 //submatrix size 
-#define N 16 //8192 matrix size is N*N 
-__global__ void matMult(float* a, float* b, float *t, int n, float* c);
-void PrintMatrix(float* a, int n);
-void InitMatrix(float* a, int n);
-
+#define BLOCK_SIZE 64 //submatrix size 
+#define N 4096 //matrix size is N*N 
+#define MULTIPLIER_A 5
+#define MULTIPLIER_B 8
+__global__ void matMatMult(int* a, int* b, int n, int* c);
+__global__ void matMultByConst(int* a, int k, int n, int* c);
+__global__ void sumMat(int* a, int* b, int n, int* c); 
+void PrintMatrix(int* a, int n);
+void InitMatrix(int* a, int n, int initVal);
 
 int main (int argc, char* argv[])
 {
-	int numBytes = N * N * sizeof(float);
+	int numBytes = N * N * sizeof(int);
 	
 	//allocate host memory 
-	float* a = new float[N*N];
-	float* b = new float[N*N];
-	float* c = new float[N*N];
+	int* a = new int[N*N];
+	int* b = new int[N*N];
+	int* c = new int[N*N];
 
 	//init matricies
-	InitMatrix(a, N);
-	InitMatrix(b, N);
+	InitMatrix(a, N, 1);
+	InitMatrix(b, N, 1);
 
 	//allocate device memory 
-	float* adev = NULL;
-	float* bdev = NULL;
-	float* cdev = NULL;
-	float* tdev = NULL;
+	int* adev = NULL;
+	int* bdev = NULL;
+	int* cdev = NULL;
 	cudaMalloc((void**)&adev, numBytes);
 	cudaMalloc((void**)&bdev, numBytes);
 	cudaMalloc((void**)&cdev, numBytes);
-	cudaMalloc((void**)&tdev, numBytes);
 
 	//set kernel launch configuration 
 	dim3 threads (BLOCK_SIZE, BLOCK_SIZE);
@@ -52,7 +51,10 @@ int main (int argc, char* argv[])
 	cudaMemcpy(adev, a, numBytes, cudaMemcpyHostToDevice);
 	cudaMemcpy(bdev, b, numBytes, cudaMemcpyHostToDevice);
 
-	matMult<<<blocks, threads>>>(adev, bdev, tdev, N, cdev);
+	matMatMult << <blocks, threads >> >(adev, bdev, N, cdev); cudaDeviceSynchronize();
+	matMultByConst << <blocks, threads >> >(adev, MULTIPLIER_A, N, adev); cudaDeviceSynchronize();
+	matMultByConst << <blocks, threads >> >(bdev, MULTIPLIER_B, N, bdev); cudaDeviceSynchronize();
+	sumMat << <blocks, threads >> >(adev, bdev, N, cdev); cudaDeviceSynchronize();
 
 	cudaMemcpy(c, cdev, numBytes, cudaMemcpyDeviceToHost);
 	PrintMatrix(c, N);
@@ -77,7 +79,7 @@ int main (int argc, char* argv[])
 	return 0;
 }
 
-__global__ void matMult(float* a, float* b, float* t, int n, float* c)
+__global__ void matMatMult(int* a, int* b, int n, int* c)
 {
 	int bx = blockIdx.x;
 	int by = blockIdx.y;
@@ -88,15 +90,15 @@ __global__ void matMult(float* a, float* b, float* t, int n, float* c)
 	int bBegin = BLOCK_SIZE * bx;
 	int aStep = BLOCK_SIZE;
 	int bStep = BLOCK_SIZE * N;
-	float sum = 0.0f;
+	int sum = 0.0f;
 	int ia = n * BLOCK_SIZE * by + n * ty; //a [i][0] 
 	int ib = BLOCK_SIZE * bx + tx;
 
 	//C = A*B 
 	for (int ia = aBegin, ib = bBegin; ia <= aEnd; ia += aStep, ib += bStep)
 	{
-		__shared__ float as [BLOCK_SIZE][BLOCK_SIZE];
-		__shared__ float bs [BLOCK_SIZE][BLOCK_SIZE];
+		__shared__ int as[BLOCK_SIZE][BLOCK_SIZE];
+		__shared__ int bs[BLOCK_SIZE][BLOCK_SIZE];
 		as[ty][tx] = a [ia + N * ty + tx];
 		bs[ty][tx] = b [ib + N * ty + tx];
 		__syncthreads (); // Убедимся, что подматрицы полностью загружены
@@ -104,63 +106,44 @@ __global__ void matMult(float* a, float* b, float* t, int n, float* c)
 		{
 			sum += as [ty][k] * bs [k][tx];
 		}
-		__syncthreads (); // Убедимся, что подматрицы никому больше не нужны
+		__syncthreads (); // Убедимся, что подматрицы не используются
 	}
 	c [N * BLOCK_SIZE * by + BLOCK_SIZE * bx + N * ty + tx] = sum;
 	//Write the block sub‐matrix to global memory; each thread writes one element 
-	c[ic + n * ty + tx] = sum;
-	__syncthreads();
-
-	//C = C*C 
-	sum = 0.0f;
-	int ic1 = ia, ic2 = ib;
-	for (int k = 0; k < n; k++)
-	{
-		sum += c[ic1 + k] * c[ic2 + k*n];
-	}
-	
-	ic = n * BLOCK_SIZE * by + BLOCK_SIZE * bx;
-	c[ic + n * ty + tx] = sum;
-	__syncthreads();
-
-	//A = A*2, B = B*3 
-	for (int k = 0; k < n; k++)
-	{
-		a[ia + k] *= 2;
-		b[ib + k*n] *= 3;
-	}
-	__syncthreads();
-	
-	//C = A - B + C
-	sum = 0.0f;
-	ic = ia;
-	for (int k = 0; k < n; k++)
-	{
-		sum = a[ia + k] - b[ib + k*n] + c[ic + k];
-	}
-
-	// Write the block sub‐matrix to global memory; each thread writes one element 
-	ic = n * BLOCK_SIZE * by + BLOCK_SIZE * bx;
-	c[ic + n * ty + tx] = sum;
-	__syncthreads();
 }
 
+__global__ void matMultByConst(int* a, int k, int n, int* c)
+{
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	int j = blockIdx.y * blockDim.y + threadIdx.y;
+	if (i < N && j < N) {
+		c[i*n + j] = a[i*n + j] * k;
+	}
+}
+
+__global__ void sumMat(int* a, int* b, int n, int* c)
+{
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	int j = blockIdx.y * blockDim.y + threadIdx.y;
+	if (i < N && j < N) {
+		c[i*n + j] = a[i*n + j] + b[i*n + j] + c[i*n + j];
+	}
+}
 
 /* UTILS */
-
-void InitMatrix(float* a, int n)
+void InitMatrix(int* a, int n, int initVal)
 {
 	for (int i = 0; i < n; i++)
 	{
 		for (int j = 0; j < n; j++)
 		{
 			int k = n * i + j;
-			a[k] = 1;
+			a[k] = initVal;
 		}
 	}
 }
 
-void PrintMatrix(float* a, int n)
+void PrintMatrix(int* a, int n)
 {
 	int rowStep = (n - 1) / 2;
 	int colStep = (n - 1) / 2;
@@ -170,7 +153,7 @@ void PrintMatrix(float* a, int n)
 		for (int j = 0; j < n; j += colStep)
 		{
 			int k = n * i + j;
-			printf("[%d,%d]: %.1f\n", i, j, a[k]);
+			printf("[%d,%d]: %d\n", i, j, a[k]);
 		}
 	}
 	printf("\n");

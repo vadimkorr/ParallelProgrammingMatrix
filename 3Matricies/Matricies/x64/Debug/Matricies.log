@@ -1,0 +1,10 @@
+﻿Сборка начата 13.06.2016 21:42:50.
+     1>Проект "D:\GIT_ROOT\GITHUB\ParallelProgrammingMatricies\3Matricies\Matricies\Matricies.vcxproj" в узле 2 (целевые объекты Build).
+     1>Link:
+         C:\Program Files\Microsoft Visual Studio 12.0\VC\bin\x86_amd64\link.exe /ERRORREPORT:PROMPT /OUT:"D:\GIT_ROOT\GITHUB\ParallelProgrammingMatricies\3Matricies\x64\Debug\Matricies.exe" /INCREMENTAL /NOLOGO /LIBPATH:"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\lib64" cudart.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"D:\GIT_ROOT\GITHUB\ParallelProgrammingMatricies\3Matricies\x64\Debug\Matricies.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"D:\GIT_ROOT\GITHUB\ParallelProgrammingMatricies\3Matricies\x64\Debug\Matricies.lib" /MACHINE:X64 x64\Debug\kernel.cu.obj
+     1>LINK : fatal error LNK1104: не удается открыть файл "cudart.lib"
+     1>Сборка проекта "D:\GIT_ROOT\GITHUB\ParallelProgrammingMatricies\3Matricies\Matricies\Matricies.vcxproj" завершена (целевые объекты Build) с ошибкой.
+
+Ошибка сборки.
+
+Затраченное время: 00:00:00.13

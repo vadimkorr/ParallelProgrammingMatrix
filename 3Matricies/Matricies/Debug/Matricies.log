@@ -1,0 +1,24 @@
+﻿Сборка начата 13.06.2016 21:47:08.
+     1>Проект "D:\GIT_ROOT\GITHUB\ParallelProgrammingMatricies\3Matricies\Matricies\Matricies.vcxproj" в узле 2 (целевые объекты Build).
+     1>AddCudaCompileDeps:
+         C:\Program Files\Microsoft Visual Studio 12.0\VC\bin\cl.exe /E /nologo /showIncludes /TP /D__CUDACC__ /DWIN32 /D_DEBUG /D_CONSOLE /D_MBCS /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\include" /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\bin" /I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\include" /I. /FIcuda_runtime.h /c D:\GIT_ROOT\GITHUB\ParallelProgrammingMatricies\3Matricies\Matricies\kernel.cu 
+       CudaBuild:
+         Compiling CUDA source file kernel.cu...
+         cmd.exe /C "C:\Users\Admin\AppData\Local\Temp\tmp8fa8905b2ff64040a4ddf778c1fbd322.cmd"
+         "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\bin\nvcc.exe" -gencode=arch=compute_20,code=\"sm_20,compute_20\" --use-local-env --cl-version 2013 -ccbin "C:\Program Files\Microsoft Visual Studio 12.0\VC\bin"  -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\include"  -G   --keep-dir Debug -maxrregcount=0  --machine 32 --compile -cudart static  -g   -DWIN32 -D_DEBUG -D_CONSOLE -D_MBCS -Xcompiler "/EHsc /W3 /nologo /Od /Zi /RTC1 /MDd  " -o Debug\kernel.cu.obj "D:\GIT_ROOT\GITHUB\ParallelProgrammingMatricies\3Matricies\Matricies\kernel.cu"
+         
+         D:\GIT_ROOT\GITHUB\ParallelProgrammingMatricies\3Matricies\Matricies>"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\bin\nvcc.exe" -gencode=arch=compute_20,code=\"sm_20,compute_20\" --use-local-env --cl-version 2013 -ccbin "C:\Program Files\Microsoft Visual Studio 12.0\VC\bin"  -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\include"  -G   --keep-dir Debug -maxrregcount=0  --machine 32 --compile -cudart static  -g   -DWIN32 -D_DEBUG -D_CONSOLE -D_MBCS -Xcompiler "/EHsc /W3 /nologo /Od /Zi /RTC1 /MDd  " -o Debug\kernel.cu.obj "D:\GIT_ROOT\GITHUB\ParallelProgrammingMatricies\3Matricies\Matricies\kernel.cu" 
+     1>D:/GIT_ROOT/GITHUB/ParallelProgrammingMatricies/3Matricies/Matricies/kernel.cu(44): warning : variable "gpuTime" was declared but never referenced
+     1>D:/GIT_ROOT/GITHUB/ParallelProgrammingMatricies/3Matricies/Matricies/kernel.cu(44): warning : variable "gpuTime" was declared but never referenced
+         kernel.cu
+       Link:
+         C:\Program Files\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"D:\GIT_ROOT\GITHUB\ParallelProgrammingMatricies\3Matricies\Debug\Matricies.exe" /INCREMENTAL /NOLOGO /LIBPATH:"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v6.5\lib\Win32" cudart.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"D:\GIT_ROOT\GITHUB\ParallelProgrammingMatricies\3Matricies\Debug\Matricies.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"D:\GIT_ROOT\GITHUB\ParallelProgrammingMatricies\3Matricies\Debug\Matricies.lib" /MACHINE:X86 Debug\kernel.cu.obj
+     1>kernel.cu.obj : error LNK2019: ссылка на неразрешенный внешний символ _cublasCreate_v2@4 в функции "void __cdecl gpu_blas_mmul(float *,float *,float *,int)" (?gpu_blas_mmul@@YAXPAM00H@Z)
+     1>kernel.cu.obj : error LNK2019: ссылка на неразрешенный внешний символ _cublasDestroy_v2@4 в функции "void __cdecl gpu_blas_mmul(float *,float *,float *,int)" (?gpu_blas_mmul@@YAXPAM00H@Z)
+     1>kernel.cu.obj : error LNK2019: ссылка на неразрешенный внешний символ _cublasSgemm_v2@56 в функции "void __cdecl gpu_blas_mmul(float *,float *,float *,int)" (?gpu_blas_mmul@@YAXPAM00H@Z)
+     1>D:\GIT_ROOT\GITHUB\ParallelProgrammingMatricies\3Matricies\Debug\Matricies.exe : fatal error LNK1120: неразрешенных внешних элементов: 3
+     1>Сборка проекта "D:\GIT_ROOT\GITHUB\ParallelProgrammingMatricies\3Matricies\Matricies\Matricies.vcxproj" завершена (целевые объекты Build) с ошибкой.
+
+Ошибка сборки.
+
+Затраченное время: 00:00:04.90
